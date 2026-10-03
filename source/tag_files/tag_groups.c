@@ -9,7 +9,7 @@ TAG_GROUPS.C
 #include "byte_swapping.h"
 #include "tag_groups.h"
 
-#ifdef HALO_64BIT
+#ifdef HALO_CUSTOM_EDITION
 void *ce_tags_pointer(unsigned long address, long size);
 #endif
 
@@ -50,13 +50,19 @@ void* tag_data_get_pointer(
 	match_assert("c:\\halo\\SOURCE\\tag_files\\tag_groups.c", 3073, size>=0);
 	match_assert("c:\\halo\\SOURCE\\tag_files\\tag_groups.c", 3074, offset>=0 && offset+size<=data->size);
 
-#ifdef HALO_64BIT
+#ifdef HALO_CUSTOM_EDITION
 	/* port: (a Custom Edition map's, only in its tag cache: ce_map_checks.c) */
-	return ce_tags_pointer(data->address + offset, size);
+	return ce_tags_pointer((unsigned long)data->address + offset, size);
+#elif defined(HALO_64BIT)
+	return (void *)((byte *)TAG_DATA_ADDRESS(data) + offset);
 #else
 	return (void *)((byte *)data->address + offset);
 #endif
 }
+
+#if defined(HALO_CUSTOM_EDITION) && !defined(HALO_64BIT)
+extern boolean cache_file_is_ce;
+#endif
 
 void *tag_block_get_element_with_size(
 	const struct tag_block *block,
@@ -66,6 +72,11 @@ void *tag_block_get_element_with_size(
 	match_assert("c:\\halo\\SOURCE\\tag_files\\tag_groups.c", 3084, block);
 	match_assert("c:\\halo\\SOURCE\\tag_files\\tag_groups.c", 3085, block->count>=0);
 #ifndef HALO_64BIT
+#ifdef HALO_CUSTOM_EDITION
+	/* port: a Custom Edition map's blocks keep the definitions' addresses in
+	Halo PC's executable, not this one's (cache_files.c) */
+	if (!cache_file_is_ce)
+#endif
 	match_assert("c:\\halo\\SOURCE\\tag_files\\tag_groups.c", 3086, !block->definition || block->definition->element_size==element_size);
 #endif
 
@@ -80,9 +91,11 @@ void *tag_block_get_element_with_size(
 #endif
 	match_assert("c:\\halo\\SOURCE\\tag_files\\tag_groups.c", 3090, block->address);
 
-#ifdef HALO_64BIT
+#ifdef HALO_CUSTOM_EDITION
 	/* port: (a Custom Edition map's, only in its tag cache: ce_map_checks.c) */
-	return ce_tags_pointer(block->address + index * element_size, element_size);
+	return ce_tags_pointer((unsigned long)block->address + index * element_size, element_size);
+#elif defined(HALO_64BIT)
+	return (void *)((byte *)TAG_BLOCK_ADDRESS(block) + (index * element_size));
 #else
 	return (void *)((byte *)block->address + (index * element_size));
 #endif
